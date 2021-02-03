@@ -1,0 +1,66 @@
+
+from photofi import file_helper
+from photofi import date_helper
+
+def fix_metadata(file: Path):
+    print(file)
+
+    has_nice_date = False
+    try:
+        set_creation_date_from_exif(file)
+        has_nice_date = True
+    except (_piexif.InvalidImageDataError, ValueError, IOError) as e:
+        print(e)
+        print(f'No exif for {file}')
+    except IOError:
+        print('No creation date found in exif!')
+
+    try:
+        google_json = find_json_for_file(file)
+        date = get_date_str_from_json(google_json)
+        set_file_geo_data(file, google_json)
+        set_file_exif_date(file, date)
+        set_creation_date_from_str(file, date)
+        has_nice_date = True
+        return
+    except FileNotFoundError:
+        print("Couldn't find json for file ")
+
+    if has_nice_date:
+        return True
+
+    print('Last chance, copying folder meta as date...')
+    date = get_date_from_folder_meta(file.parent)
+    if date is not None:
+        set_file_exif_date(file, date)
+        set_creation_date_from_str(file, date)
+        nonlocal s_date_from_folder_files
+        s_date_from_folder_files.append(str(file.resolve()))
+        return True
+    else:
+        print('WARNING! There was literally no option to set date!!!')
+        nonlocal s_no_date_at_all
+        s_no_date_at_all.append(str(file.resolve()))
+
+    return False
+
+def copy_to_target(file: Path):
+    if is_photo(file) or is_video(file):
+        new_file = new_name_if_exists(FIXED_DIR / file.name)
+        _shutil.copy2(file, new_file)
+        nonlocal s_copied_files
+        s_copied_files += 1
+    return True
+# Example: Photos from 2021/02/IMG_1234.JPG
+def copy_to_target_and_divide(file: Path):
+    creation_date = file.stat().st_mtime
+    date = _datetime.fromtimestamp(creation_date)
+
+    new_path = FIXED_DIR / f"{date.year}/{date.month:02}/"
+    new_path.mkdir(parents=True, exist_ok=True)
+
+    new_file = new_name_if_exists(new_path / file.name)
+    _shutil.copy2(file, new_file)
+    nonlocal s_copied_files
+    s_copied_files += 1
+    return True

@@ -18,8 +18,10 @@ Note: This skeleton file can be safely removed if not needed!
 import argparse
 import logging
 import sys
+from pathlib import Path as Path
 
 from photofi import __version__
+from photofi import core
 
 __author__ = "Julien Hoffmann"
 __copyright__ = "Julien Hoffmann"
@@ -53,13 +55,44 @@ def parse_args(args):
     Returns:
       :obj:`argparse.Namespace`: command line parameters namespace
     """
-    parser = argparse.ArgumentParser(description="Just a Fibonacci demonstration")
+    parser = argparse.ArgumentParser(
+      prog="Pho(to)fo(folder)fi(x)",
+      description="Photo folder fixer and then some more - Fixes folder structure, created date and exif data if needed.",
+      usage="phofofix -i [INPUT FOLDER] -o [OUTPUT FOLDER]"
+    )
     parser.add_argument(
         "--version",
         action="version",
         version="photofi {ver}".format(ver=__version__),
     )
-    parser.add_argument(dest="n", help="n-th Fibonacci number", type=int, metavar="INT")
+    parser.add_argument(
+        "-i",
+        "--input-folder",
+        required=True,
+        default="data/input",
+        help="set input folder",
+        type=str
+    )
+    parser.add_argument(
+        "-R",
+        "--recursivly",
+        action='store_true',
+        help="search through input folder recursivly"
+    )
+    parser.add_argument(
+        "-fm",
+        "--fix-meta-data",
+        action='store_true',
+        help="tries to fix broken metadata such as wrongly set creation date"
+    )
+    parser.add_argument(
+        "-o",
+        "--output-folder",
+        required=True,
+        default="data/output",
+        help="set output folder",
+        type=str
+    )
     parser.add_argument(
         "-v",
         "--verbose",
@@ -90,6 +123,18 @@ def setup_logging(loglevel):
         level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S"
     )
 
+# Variables
+## Statistics:
+s_removed_duplicates_count = 0
+s_folders_created = 0
+s_files_moved = 0
+s_files_fixed = 0
+
+## File definitions
+photo_formats = ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tif', '.tiff', '.svg', '.heic']
+video_formats = ['.mp4', '.gif', '.mov', '.webm', '.avi', '.wmv', '.rm', '.mpg', '.mpe', '.mpeg', '.mkv', '.m4v', '.mts', '.m2ts']
+
+
 
 def main(args):
     """Main entry point allowing external calls
@@ -100,9 +145,47 @@ def main(args):
     args = parse_args(args)
     setup_logging(args.loglevel)
     _logger.debug("Starting crazy calculations...")
-    print("The {}-th Fibonacci number is {}".format(args.n, fib(args.n)))
+    # Print("The {}-th Fibonacci number is {}".format(args.n, fib(args.n)))
+    INPUT_DIR = Path(args.input_folder)
+    OUTPUT_DIR = Path(args.output_folder)
+
+    _logger.info(INPUT_DIR)
+    _logger.info(OUTPUT_DIR)
+
+
+
+    # This is where the fun begins
+
+    # First we'll fix the metadata
+    if args.fix-meta-data:
+        _logger.info('Fixing meta data')
+        for_all_files_recursive(
+            dir=PHOTOS_DIR,
+            file_function=fix_metadata,
+            filter_fun=lambda f: (is_photo(f) or is_video(f))
+        )
+
+    # Removing duplicates - Some options here
+    #   - Run through all the files again, this time checking-for and removing duplicates
+    #   - While copying/moving the photos decide which one to keep and deleting the old one (or putting it in a seperate folder)
+
+    # Moving (or copying) all the files into the appropriate folder
+    for_all_files_recursive(
+            dir=PHOTOS_DIR,
+            file_function=copy_to_target_and_divide,
+            filter_fun=lambda f: (is_photo(f) or is_video(f))
+    )
+
+
+
+
+
     _logger.info("Script ends here")
 
+
+def runFib():
+    """Entry point for console_scripts"""
+    main(sys.argv[1:])
 
 def run():
     """Entry point for console_scripts"""
