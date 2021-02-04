@@ -123,65 +123,6 @@ def setup_logging(loglevel):
         level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S"
     )
 
-# Variables
-## Statistics:
-s_removed_duplicates_count = 0
-s_folders_created = 0
-s_files_moved = 0
-s_files_fixed = 0
-
-## File definitions
-photo_formats = ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tif', '.tiff', '.svg', '.heic']
-video_formats = ['.mp4', '.gif', '.mov', '.webm', '.avi', '.wmv', '.rm', '.mpg', '.mpe', '.mpeg', '.mkv', '.m4v', '.mts', '.m2ts']
-
-
-
-def main(args):
-    """Main entry point allowing external calls
-
-    Args:
-      args ([str]): command line parameter list
-    """
-    args = parse_args(args)
-    setup_logging(args.loglevel)
-    _logger.debug("Starting crazy calculations...")
-    # Print("The {}-th Fibonacci number is {}".format(args.n, fib(args.n)))
-    INPUT_DIR = Path(args.input_folder)
-    OUTPUT_DIR = Path(args.output_folder)
-
-    _logger.info(INPUT_DIR)
-    _logger.info(OUTPUT_DIR)
-
-
-
-    # This is where the fun begins
-
-    # First we'll fix the metadata
-    if args.fix-meta-data:
-        _logger.info('Fixing meta data')
-        for_all_files_recursive(
-            dir=PHOTOS_DIR,
-            file_function=fix_metadata,
-            filter_fun=lambda f: (is_photo(f) or is_video(f))
-        )
-
-    # Removing duplicates - Some options here
-    #   - Run through all the files again, this time checking-for and removing duplicates
-    #   - While copying/moving the photos decide which one to keep and deleting the old one (or putting it in a seperate folder)
-
-    # Moving (or copying) all the files into the appropriate folder
-    for_all_files_recursive(
-            dir=PHOTOS_DIR,
-            file_function=copy_to_target_and_divide,
-            filter_fun=lambda f: (is_photo(f) or is_video(f))
-    )
-
-
-
-
-
-    _logger.info("Script ends here")
-
 
 def runFib():
     """Entry point for console_scripts"""
@@ -189,7 +130,17 @@ def runFib():
 
 def run():
     """Entry point for console_scripts"""
+    
+    """Main entry point allowing external calls
+
+    Args:
+      args ([str]): command line parameter list
+    """
+    args = parse_args(args)
+    setup_logging(args.loglevel)
     main(sys.argv[1:])
+    
+    _logger.info("Script ends here")
 
 
 if __name__ == "__main__":

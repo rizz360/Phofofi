@@ -2,6 +2,51 @@
 from photofi import file_helper
 from photofi import date_helper
 
+_logger = logging.getLogger(__name__)
+
+# Variables
+## Statistics:
+s_removed_duplicates_count = 0
+s_folders_created = 0
+s_files_moved = 0
+s_files_fixed = 0
+
+## File definitions
+photo_formats = ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tif', '.tiff', '.svg', '.heic']
+video_formats = ['.mp4', '.gif', '.mov', '.webm', '.avi', '.wmv', '.rm', '.mpg', '.mpe', '.mpeg', '.mkv', '.m4v', '.mts', '.m2ts']
+
+def main(args):
+    INPUT_DIR = Path(args.input_folder)
+    OUTPUT_DIR = Path(args.output_folder)
+
+    _logger.info(INPUT_DIR)
+    _logger.info(OUTPUT_DIR)
+
+    # First we'll fix the metadata
+    if args.fix-meta-data:
+        _logger.info('Fixing meta data')
+        for_all_files_recursive(
+            dir=PHOTOS_DIR,
+            file_function=fix_metadata,
+            filter_fun=lambda f: (is_photo(f) or is_video(f))
+        )
+
+    # Removing duplicates - Some options here
+    #   - Run through all the files again, this time checking-for and removing duplicates
+    #   - While copying/moving the photos decide which one to keep and deleting the old one (or putting it in a seperate folder)
+
+    # Moving (or copying) all the files into the appropriate folder
+    for_all_files_recursive(
+            dir=PHOTOS_DIR,
+            file_function=copy_to_target_and_divide,
+            filter_fun=lambda f: (is_photo(f) or is_video(f))
+    )
+
+    
+
+
+
+
 def fix_metadata(file: Path):
     print(file)
 
