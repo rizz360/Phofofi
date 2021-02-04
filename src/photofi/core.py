@@ -2,20 +2,38 @@
 from photofi import file_helper
 from photofi import date_helper
 
+from pathlib import Path as Path
+import shutil as _shutil
+import piexif as _piexif
+from datetime import datetime as _datetime
+
+import logging
 _logger = logging.getLogger(__name__)
 
 # Variables
-## Statistics:
+# Statistics:
 s_removed_duplicates_count = 0
 s_folders_created = 0
 s_files_moved = 0
 s_files_fixed = 0
 
-## File definitions
-photo_formats = ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tif', '.tiff', '.svg', '.heic']
-video_formats = ['.mp4', '.gif', '.mov', '.webm', '.avi', '.wmv', '.rm', '.mpg', '.mpe', '.mpeg', '.mkv', '.m4v', '.mts', '.m2ts']
+s_removed_duplicates_count = 0
+s_copied_files = 0
+s_date_from_folder_files = []  # List of files where date was set from folder name
+s_skipped_extra_files = []  # List of extra files ("-edited" etc) which were skipped
+s_no_json_found = []  # List of files where we couldn't find json
+s_no_date_at_all = []  # List of files where there was absolutely no option to set correct date
+
+INPUT_DIR = ""
+OUTPUT_DIR = ""
+
 
 def main(args):
+    """Main entry point allowing external calls
+    Args:
+      args ([str]): command line parameter list
+    """
+
     INPUT_DIR = Path(args.input_folder)
     OUTPUT_DIR = Path(args.output_folder)
 
@@ -23,12 +41,12 @@ def main(args):
     _logger.info(OUTPUT_DIR)
 
     # First we'll fix the metadata
-    if args.fix-meta-data:
+    if args.fix_meta_data:
         _logger.info('Fixing meta data')
-        for_all_files_recursive(
-            dir=PHOTOS_DIR,
+        file_helper.for_all_files_recursive(
+            dir=INPUT_DIR,
             file_function=fix_metadata,
-            filter_fun=lambda f: (is_photo(f) or is_video(f))
+            filter_fun=lambda f: (file_helper.is_photo(f) or file_helper.is_video(f))
         )
 
     # Removing duplicates - Some options here
@@ -36,15 +54,11 @@ def main(args):
     #   - While copying/moving the photos decide which one to keep and deleting the old one (or putting it in a seperate folder)
 
     # Moving (or copying) all the files into the appropriate folder
-    for_all_files_recursive(
-            dir=PHOTOS_DIR,
-            file_function=copy_to_target_and_divide,
-            filter_fun=lambda f: (is_photo(f) or is_video(f))
+    file_helper.for_all_files_recursive(
+        dir=INPUT_DIR,
+        file_function=move_to_target_and_divide,
+        filter_fun=lambda f: (file_helper.is_photo(f) or file_helper.is_video(f))
     )
-
-    
-
-
 
 
 def fix_metadata(file: Path):
@@ -52,7 +66,7 @@ def fix_metadata(file: Path):
 
     has_nice_date = False
     try:
-        set_creation_date_from_exif(file)
+        date_helper.set_creation_date_from_exif(file)
         has_nice_date = True
     except (_piexif.InvalidImageDataError, ValueError, IOError) as e:
         print(e)
@@ -60,52 +74,25 @@ def fix_metadata(file: Path):
     except IOError:
         print('No creation date found in exif!')
 
-    try:
-        google_json = find_json_for_file(file)
-        date = get_date_str_from_json(google_json)
-        set_file_geo_data(file, google_json)
-        set_file_exif_date(file, date)
-        set_creation_date_from_str(file, date)
-        has_nice_date = True
-        return
-    except FileNotFoundError:
-        print("Couldn't find json for file ")
-
     if has_nice_date:
         return True
 
-    print('Last chance, copying folder meta as date...')
-    date = get_date_from_folder_meta(file.parent)
-    if date is not None:
-        set_file_exif_date(file, date)
-        set_creation_date_from_str(file, date)
-        nonlocal s_date_from_folder_files
-        s_date_from_folder_files.append(str(file.resolve()))
-        return True
-    else:
-        print('WARNING! There was literally no option to set date!!!')
-        nonlocal s_no_date_at_all
-        s_no_date_at_all.append(str(file.resolve()))
+    print('WARNING! There was literally no option to set date!!!')
+    s_no_date_at_all.append(str(file.resolve()))
 
     return False
 
-def copy_to_target(file: Path):
-    if is_photo(file) or is_video(file):
-        new_file = new_name_if_exists(FIXED_DIR / file.name)
-        _shutil.copy2(file, new_file)
-        nonlocal s_copied_files
-        s_copied_files += 1
-    return True
-# Example: Photos from 2021/02/IMG_1234.JPG
-def copy_to_target_and_divide(file: Path):
+
+def move_to_target_and_divide(file: Path):
     creation_date = file.stat().st_mtime
     date = _datetime.fromtimestamp(creation_date)
 
-    new_path = FIXED_DIR / f"{date.year}/{date.month:02}/"
+    new_path = OUTPUT_DIR / f"{date.year}/{date.month:02}/"
     new_path.mkdir(parents=True, exist_ok=True)
 
-    new_file = new_name_if_exists(new_path / file.name)
-    _shutil.copy2(file, new_file)
-    nonlocal s_copied_files
-    s_copied_files += 1
+    new_file = file_helper.new_name_if_exists(new_path / file.name)
+    # Check for duplicates here
+
+    _shutil.move(file, new_file)
+    s_files_moved += 1
     return True

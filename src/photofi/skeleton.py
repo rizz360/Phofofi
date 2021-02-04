@@ -136,12 +136,16 @@ def run():
     Args:
       args ([str]): command line parameter list
     """
-    args = parse_args(args)
+    
+    args = parse_args(sys.argv[1:])
     setup_logging(args.loglevel)
-    main(sys.argv[1:])
+    main(args)
     
     _logger.info("Script ends here")
 
+def main(args):
+    core.main(args)
+    
 
 if __name__ == "__main__":
     run()

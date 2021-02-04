@@ -1,4 +1,18 @@
 import datetime
+from pathlib import Path as Path
+from datetime import datetime as _datetime
+import piexif as _piexif
+import os as _os
+if _os.name == 'nt':
+    import win32_setctime as _windoza_setctime
+
+
+s_cant_insert_exif_files = []  # List of files where inserting exif failed
+TAG_DATE_TIME_ORIGINAL = _piexif.ExifIFD.DateTimeOriginal
+TAG_DATE_TIME_DIGITIZED = _piexif.ExifIFD.DateTimeDigitized
+TAG_DATE_TIME = 306
+TAG_PREVIEW_DATE_TIME = 50971
+
 
 def set_creation_date_from_str(file: Path, str_datetime):
     try:
@@ -6,7 +20,8 @@ def set_creation_date_from_str(file: Path, str_datetime):
         # God wish that americans won't have something like MM-DD-YYYY
         # The replace ': ' to ':0' fixes issues when it reads the string as 2006:11:09 10:54: 1.
         # It replaces the extra whitespace with a 0 for proper parsing
-        str_datetime = str_datetime.replace('-', ':').replace('/', ':').replace('.', ':').replace('\\', ':').replace(': ', ':0')[:19]
+        str_datetime = str_datetime.replace(
+            '-', ':').replace('/', ':').replace('.', ':').replace('\\', ':').replace(': ', ':0')[:19]
         timestamp = _datetime.strptime(
             str_datetime,
             '%Y:%m:%d %H:%M:%S'
@@ -19,13 +34,15 @@ def set_creation_date_from_str(file: Path, str_datetime):
         print(e)
         raise ValueError(f"Error setting creation date from string: {str_datetime}")
 
+
 def set_creation_date_from_exif(file: Path):
     try:
         # Why do you need to be like that, Piexif...
         exif_dict = _piexif.load(str(file))
     except Exception as e:
-        raise IOError("Can't read file's exif!")
-    tags = [['0th', TAG_DATE_TIME], ['Exif', TAG_DATE_TIME_ORIGINAL], ['Exif', TAG_DATE_TIME_DIGITIZED]]
+        raise IOError("Can't read file's exif!", e)
+    tags = [['0th', TAG_DATE_TIME], ['Exif', TAG_DATE_TIME_ORIGINAL],
+            ['Exif', TAG_DATE_TIME_DIGITIZED]]
     datetime_str = ''
     date_set_success = False
     for tag in tags:
@@ -43,6 +60,7 @@ def set_creation_date_from_exif(file: Path):
     if not date_set_success:
         raise IOError('No correct DateTime in given exif')
 
+
 def set_file_exif_date(file: Path, creation_date):
     try:
         exif_dict = _piexif.load(str(file))
@@ -59,5 +77,5 @@ def set_file_exif_date(file: Path, creation_date):
     except Exception as e:
         print("Couldn't insert exif!")
         print(e)
-        nonlocal s_cant_insert_exif_files
+        s_cant_insert_exif_files
         s_cant_insert_exif_files.append(str(file.resolve()))
