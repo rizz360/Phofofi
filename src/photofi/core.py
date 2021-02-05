@@ -34,6 +34,9 @@ def main(args):
       args ([str]): command line parameter list
     """
 
+    global INPUT_DIR
+    global OUTPUT_DIR
+
     INPUT_DIR = Path(args.input_folder)
     OUTPUT_DIR = Path(args.output_folder)
 
@@ -41,6 +44,7 @@ def main(args):
     _logger.info(OUTPUT_DIR)
 
     # First we'll fix the metadata
+
     if args.fix_meta_data:
         _logger.info('Fixing meta data')
         file_helper.for_all_files_recursive(
@@ -59,6 +63,9 @@ def main(args):
         file_function=move_to_target_and_divide,
         filter_fun=lambda f: (file_helper.is_photo(f) or file_helper.is_video(f))
     )
+
+    global s_files_moved
+    _logger.info(f'Moved {s_files_moved} files to the correct location.')
 
 
 def fix_metadata(file: Path):
@@ -87,12 +94,20 @@ def move_to_target_and_divide(file: Path):
     creation_date = file.stat().st_mtime
     date = _datetime.fromtimestamp(creation_date)
 
-    new_path = OUTPUT_DIR / f"{date.year}/{date.month:02}/"
+    global OUTPUT_DIR
+    new_path = Path(f"{OUTPUT_DIR}/Photos from {date.year}/{date.month:02}/")
     new_path.mkdir(parents=True, exist_ok=True)
 
     new_file = file_helper.new_name_if_exists(new_path / file.name)
     # Check for duplicates here
+    # _shutil.move(file, new_file)
+    _shutil.copy2(file, new_file)  # Debug
+    _logger.info(f'Moved {file} to {new_file}')
 
-    _shutil.move(file, new_file)
+    global s_files_moved
     s_files_moved += 1
     return True
+
+
+def get_date_taken(path):
+    return Image.open(path)._getexif()[36867]
